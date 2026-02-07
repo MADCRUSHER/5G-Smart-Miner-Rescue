@@ -8,6 +8,7 @@ class vestdata(BaseModel):
 	heartrate:int
 	gaslevel:int
 	moving:bool
+	
 @app.get("/")
 def checkstatus():
 	return{"status":"5G Edge Node Online"}
