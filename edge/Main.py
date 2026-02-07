@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
+alert={"status":"No data received yet"}
+
 class vestdata(BaseModel):
 	minerid:str
 	heartrate:int
@@ -15,6 +17,8 @@ def checkstatus():
 
 @app.post("/process")
 def logic(data:vestdata):
+	global alert
+
 	score=0
 
 	if data.gaslevel>100:
@@ -34,8 +38,12 @@ def logic(data:vestdata):
 		status="CRITICAL"
 	elif score>=5:
 		status="WARNING"
+
+	alert={"id":data.minerid,"category":status,"score":score,"timestamp":"Real-time 5G feed"}
 	print(f"Miner {data.minerid} status: {status} (Score:{score})")
 
-	return{
-		"Id":data.minerid, "Score":score, "Health":status, "Action":"DEPLOY DRONE" if status == "CRITICAL" else "MONITOR"}
-	
+	return alert
+
+@app.get("/status")
+def getstatus():
+	return alert
