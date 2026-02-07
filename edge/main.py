@@ -19,53 +19,70 @@ def checkstatus():
 def logic(data: vestdata):
     global alert
 
-    hr = data.heartrate
-    gas = data.gaslevel
-    temp = data.temp
+    # RAW ADC values (0–1023)
+    hr_raw = data.heartrate
+    gas_raw = data.gaslevel
+    temp = data.temp  # already ~36–47
 
     score = 0
 
-    # ---- GAS (±5 ppm buffer) ----
-    if gas > 105:
-        score += 5
-    elif gas > 55:
-        score += 2
+    # ========== GAS (PRIMARY INDICATOR) ==========
+    # Typical raw gas values you observed: ~90–120 (can rise)
+    if gas_raw >= 700:
+        score += 6          # extreme gas
+    elif gas_raw >= 500:
+        score += 4          # high gas
+    elif gas_raw >= 300:
+        score += 2          # mild anomaly
 
-    # ---- HEART RATE (±5 BPM buffer) ----
-    if hr > 135 or hr < 45:
-        score += 4
-    elif hr > 115:
+    # ========== HEART RATE (RAW ADC) ==========
+    # Floating / high raw means stress / bad contact
+    if hr_raw >= 800:
         score += 3
-
-    # ---- TEMPERATURE (±0.5°C buffer) ----
-    if temp > 40.5:
-        score += 4
-    elif temp > 37.5:
+    elif hr_raw >= 600:
         score += 2
+    elif hr_raw >= 400:
+        score += 1
 
-    status = "STABLE"
+    # ========== TEMPERATURE ==========
+    # Your formula already gives ~36.5–46
+    if temp >= 42:
+        score += 3
+    elif temp >= 39:
+        score += 2
+    elif temp >= 37.5:
+        score += 1
+
+    # ========== FINAL SEVERITY ==========
     if score >= 8:
         status = "CRITICAL"
-    elif score >= 5:
+    elif score >= 4:
         status = "WARNING"
+    else:
+        status = "STABLE"
 
     alert = {
         "id": data.minerid,
         "category": status,
         "score": score,
-        "heartrate": hr,
-        "gaslevel": gas,
+        "heartrate_raw": hr_raw,
+        "gaslevel_raw": gas_raw,
         "temp": temp,
         "timestamp": "Real-time 5G feed"
     }
 
-    print(f"Miner {data.minerid}: {status} | Score={score}")
+    print(
+        f"{data.minerid} | "
+        f"HR_RAW={hr_raw}, GAS_RAW={gas_raw}, TEMP={temp:.1f} → {status}"
+    )
+
     return alert
 
 
 @app.get("/status")
 def getstatus():
 	return alert
+
 
 
 
