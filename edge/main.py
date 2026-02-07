@@ -19,29 +19,28 @@ def checkstatus():
 def logic(data: vestdata):
     global alert
 
-    # Final sanity clamps (edge safety)
-    hr = max(40, min(data.heartrate, 180))
-    gas = max(0, min(data.gaslevel, 300))
-    temp = max(10, min(data.temp, 60))
+    hr = data.heartrate
+    gas = data.gaslevel
+    temp = data.temp
 
     score = 0
 
-    # Gas logic
-    if gas > 100:
+    # ---- GAS (±5 ppm buffer) ----
+    if gas > 105:
         score += 5
-    elif gas > 50:
+    elif gas > 55:
         score += 2
 
-    # Heart rate logic
-    if hr > 130 or hr < 50:
+    # ---- HEART RATE (±5 BPM buffer) ----
+    if hr > 135 or hr < 45:
         score += 4
-    elif hr > 110:
+    elif hr > 115:
         score += 3
 
-    # Temperature logic
-    if temp > 40:
+    # ---- TEMPERATURE (±0.5°C buffer) ----
+    if temp > 40.5:
         score += 4
-    elif temp > 37:
+    elif temp > 37.5:
         score += 2
 
     status = "STABLE"
@@ -60,11 +59,13 @@ def logic(data: vestdata):
         "timestamp": "Real-time 5G feed"
     }
 
-    print(f"Miner {data.minerid} → {status} | Score: {score}")
+    print(f"Miner {data.minerid}: {status} | Score={score}")
     return alert
+
 
 @app.get("/status")
 def getstatus():
 	return alert
+
 
 
