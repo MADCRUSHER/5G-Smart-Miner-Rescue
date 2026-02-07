@@ -9,7 +9,7 @@ class vestdata(BaseModel):
 	minerid:str
 	heartrate:int
 	gaslevel:int
-	moving:bool
+	temp:float
 	
 @app.get("/")
 def checkstatus():
@@ -47,3 +47,4 @@ def logic(data:vestdata):
 @app.get("/status")
 def getstatus():
 	return alert
+
