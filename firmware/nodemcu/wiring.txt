@@ -1,0 +1,6 @@
+NodeMCU Wiring
+
+DHT11 → D4
+MQ2 AO → A0
+KY093 → A0 (via divider or time-share)
+FSR → A0 (voltage divider)
