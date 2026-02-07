@@ -22,4 +22,5 @@ FSR — force/pressure
 Output: JSON over HTTP every 3 sec
 
 
-
+Live API Link : https://fiveg-smart-miner-rescue-1.onrender.com/ 
+hosted on Render
