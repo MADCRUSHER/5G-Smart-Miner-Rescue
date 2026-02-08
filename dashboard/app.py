@@ -4,138 +4,232 @@ import pandas as pd
 import plotly.express as px
 import time
 
+# ==============================
+# CONFIG
+# ==============================
+
+st.set_page_config(
+    page_title="5G Smart Miner Control Room",
+    layout="wide"
+)
+
 EDGE_URL = "https://fiveg-smart-miner-rescue.onrender.com/status"
 
-st.set_page_config(layout="wide")
-st.title("🚨 5G Smart Miner Rescue Command Center")
+# ==============================
+# SESSION STATE INIT
+# ==============================
 
-# ---------------- FETCH DATA ---------------- #
+if "history_hr" not in st.session_state:
+    st.session_state.history_hr = []
+
+if "history_gas" not in st.session_state:
+    st.session_state.history_gas = []
+
+if "history_temp" not in st.session_state:
+    st.session_state.history_temp = []
+
+# ==============================
+# FETCH EDGE DATA
+# ==============================
 
 def fetch_data():
     try:
         response = requests.get(EDGE_URL, timeout=5)
-        if response.status_code == 200:
-            return response.json()
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+
+        if "miners" in data and len(data["miners"]) > 0:
+            return data["miners"][0]   # Always take first miner
+
         return None
-    except:
+
+    except Exception as e:
+        st.write("Connection Error:", e)
         return None
+
+# ==============================
+# MAIN UI
+# ==============================
+
+st.title("🚨 5G Smart Miner Rescue Command Center")
 
 data = fetch_data()
 
-if not data or "miners" not in data:
-    st.warning("Waiting for miner data from Edge...")
+if not data:
+    st.error("⚠️ Unable to fetch data from Edge")
     st.stop()
 
-miners = data["miners"]
+# ==============================
+# SAFE FIELD EXTRACTION
+# ==============================
 
-# ---------------- PRIORITY SORT ---------------- #
+miner_id = data.get("id", "Miner 1")
+status = data.get("category", "UNKNOWN")
 
-priority_order = {
-    "DECEASED": 4,
-    "CRITICAL": 3,
-    "MONITOR": 2,
-    "STABLE": 1
-}
+hr = data.get("heartrate") or data.get("hr") or 0
+gas = data.get("gasLevel") or data.get("gaslevel") or data.get("gas level") or 0
+temp = data.get("temperature") or data.get("temp") or data.get("Temp") or 0
+score = data.get("score") or 0
 
-miners_sorted = sorted(
-    miners,
-    key=lambda x: priority_order.get(x["category"], 0),
-    reverse=True
+# ==============================
+# STORE HISTORY
+# ==============================
+
+st.session_state.history_hr.append(hr)
+st.session_state.history_gas.append(gas)
+st.session_state.history_temp.append(temp)
+
+st.session_state.history_hr = st.session_state.history_hr[-40:]
+st.session_state.history_gas = st.session_state.history_gas[-40:]
+st.session_state.history_temp = st.session_state.history_temp[-40:]
+
+# ==============================
+# STATUS BAR
+# ==============================
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Miner ID", miner_id)
+col2.metric("Status", status)
+col3.metric("Severity Score", score)
+col4.metric("Edge Gateway", "ONLINE")
+
+st.divider()
+
+# ==============================
+# COLOR LOGIC
+# ==============================
+
+status_color = {
+    "STABLE": "#2ecc71",
+    "MONITOR": "#f39c12",
+    "CRITICAL": "#e74c3c",
+    "DECEASED": "#000000"
+}.get(status, "gray")
+
+st.markdown(
+    f"""
+    <div style="
+        padding:20px;
+        border-radius:12px;
+        background-color:{status_color};
+        color:white;
+        font-size:22px;
+        font-weight:bold;
+        text-align:center;
+        box-shadow: 0px 0px 20px rgba(255,0,0,0.4);
+    ">
+        Miner 1 Condition: {status}
+    </div>
+    """,
+    unsafe_allow_html=True
 )
 
-# ---------------- STATUS BAR ---------------- #
+st.divider()
 
-critical_count = len([m for m in miners if m["category"] == "CRITICAL"])
+# ==============================
+# GRAPHS SECTION
+# ==============================
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Edge Gateway", "ONLINE")
-col2.metric("Total Miners", len(miners))
-col3.metric("Critical Alerts", critical_count)
 
-st.divider()
+# ------------------------------
+# HEART RATE GRAPH
+# ------------------------------
 
-left, right = st.columns([1, 2])
+with col1:
+    st.subheader("❤️ Heart Rate")
 
-# ---------------- TRIAGE PANEL ---------------- #
+    df_hr = pd.DataFrame({
+        "Time": list(range(len(st.session_state.history_hr))),
+        "Heart Rate": st.session_state.history_hr
+    })
 
-with left:
-    st.subheader("🔥 Triage Priority")
-
-    for miner in miners_sorted:
-        category = miner["category"]
-
-        color = "#2ecc71"
-        if category == "CRITICAL":
-            color = "#e74c3c"
-        elif category == "MONITOR":
-            color = "#f39c12"
-        elif category == "DECEASED":
-            color = "#8e44ad"
-
-        st.markdown(
-            f"""
-            <div style="
-                padding:12px;
-                margin-bottom:10px;
-                border-radius:10px;
-                background-color:{color};
-                color:white;
-                font-weight:bold;
-            ">
-            {miner['id']}
-            <br>Status: {category}
-            <br>Heart Rate: {miner['heartrate']}
-            <br>Gas Level: {miner['gas level']}
-            <br>Temperature: {miner['Temp']}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-# ---------------- GRAPHS ---------------- #
-
-with right:
-    st.subheader("📊 Live Vital Monitoring")
-
-    df = pd.DataFrame([
-        {
-            "Miner": m["id"],
-            "Heart Rate": m["heartrate"],
-            "Gas Level": m["gas level"],
-            "Status": m["category"]
-        }
-        for m in miners
-    ])
-
-    # Heart Rate Graph
-    st.markdown("### ❤️ Heart Rate Levels")
-    fig_hr = px.bar(
-        df,
-        x="Miner",
+    fig_hr = px.line(
+        df_hr,
+        x="Time",
         y="Heart Rate",
-        color="Miner",
-        text="Heart Rate"
+        line_shape="spline"
     )
+
+    fig_hr.update_traces(line_color="red")
     fig_hr.update_layout(height=350)
+
+    # Add danger zones
+    fig_hr.add_hline(y=1000, line_dash="dash", line_color="red")
+
     st.plotly_chart(fig_hr, use_container_width=True)
 
-    # Gas Level Graph
-    st.markdown("### ☣️ Gas Levels")
-    fig_gas = px.bar(
-        df,
-        x="Miner",
+# ------------------------------
+# GAS GRAPH
+# ------------------------------
+
+with col2:
+    st.subheader("☁️ Gas Level")
+
+    df_gas = pd.DataFrame({
+        "Time": list(range(len(st.session_state.history_gas))),
+        "Gas Level": st.session_state.history_gas
+    })
+
+    fig_gas = px.line(
+        df_gas,
+        x="Time",
         y="Gas Level",
-        color="Miner",
-        text="Gas Level"
+        line_shape="spline"
     )
+
+    fig_gas.update_traces(line_color="orange")
     fig_gas.update_layout(height=350)
+
+    # Add thresholds
+    fig_gas.add_hline(y=700, line_dash="dash", line_color="orange")
+    fig_gas.add_hline(y=750, line_dash="dash", line_color="red")
+
     st.plotly_chart(fig_gas, use_container_width=True)
 
-# ---------------- FOOTER ---------------- #
+# ------------------------------
+# TEMPERATURE GRAPH
+# ------------------------------
 
-st.divider()
-st.caption(f"Last Update: {data.get('timestamp', 'Unknown')}")
+with col3:
+    st.subheader("🌡️ Temperature")
 
-# Auto refresh
-time.sleep(2)
+    df_temp = pd.DataFrame({
+        "Time": list(range(len(st.session_state.history_temp))),
+        "Temperature": st.session_state.history_temp
+    })
+
+    fig_temp = px.line(
+        df_temp,
+        x="Time",
+        y="Temperature",
+        line_shape="spline"
+    )
+
+    fig_temp.update_traces(line_color="purple")
+    fig_temp.update_layout(height=350)
+
+    # Dynamic zoom scaling
+    if len(st.session_state.history_temp) > 0:
+        min_temp = min(st.session_state.history_temp)
+        max_temp = max(st.session_state.history_temp)
+
+        padding = 0.5  # zoom sensitivity
+        fig_temp.update_yaxes(range=[min_temp - padding, max_temp + padding])
+
+    # Threshold lines
+    fig_temp.add_hline(y=39.5, line_dash="dash", line_color="orange")
+    fig_temp.add_hline(y=41.5, line_dash="dash", line_color="red")
+
+    st.plotly_chart(fig_temp, use_container_width=True)
+
+# ==============================
+# AUTO REFRESH
+# ==============================
+
+time.sleep(1)
 st.rerun()
