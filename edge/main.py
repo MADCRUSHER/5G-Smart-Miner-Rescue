@@ -59,15 +59,13 @@ def logic(data:vestdata):
 
 	miners=[]
 	miners.append({"id":data.minerid,"category":booga,"heartrate":hrate,"gas level":gas,"Temp":temp})
-	miners.append({"id":"Miner 102","category":booga,"heartrate":int(950),"gas level":int(710),"Temp":round(39.8)})
-	miners.append({"id":"Miner 103","category":booga,"heartrate":int(970),"gas level":int(680),"Temp":round(38.5)})
-	miners.append({"id":"Miner 104","category":booga,"heartrate":int(1005),"gas level":int(720),"Temp":round(40)})
+	#miners.append({"id":"Miner 102","category":booga,"heartrate":int(950),"gas level":int(710),"Temp":round(39.8)})
+	#miners.append({"id":"Miner 103","category":booga,"heartrate":int(970),"gas level":int(680),"Temp":round(38.5)})
+	#miners.append({"id":"Miner 104","category":booga,"heartrate":int(1005),"gas level":int(720),"Temp":round(40)})
 
 	alert ={ "miners":miners,"timestamp":"Real-time 5G feed"}
 	return alert
 
 @app.get("/status")
 def getstatus():
-
 	return alert
-
