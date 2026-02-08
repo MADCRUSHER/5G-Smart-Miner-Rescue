@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Drone Rescue Evacuation Panel</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+font-family:Segoe UI,system-ui;
+background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+color:white;
+padding:24px;
+}
+header{
+background:rgba(0,0,0,.35);
+border-radius:18px;
+padding:30px;
+text-align:center;
+margin-bottom:28px;
+}
+header h1{
+font-size:34px;
+color:#00ff88;
+text-shadow:0 0 25px rgba(0,255,136,.6);
+}
+.statusbar{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:20px;
+margin-bottom:30px;
+}
+.stat{
+background:#0b0f2a;
+border:2px solid #2d3748;
+border-radius:14px;
+padding:22px;
+text-align:center;
+}
+.stat .label{color:#9ca3af}
+.stat .value{
+font-size:32px;
+font-weight:800;
+color:#00ff88;
+}
+.section-title{
+color:#00ff88;
+font-size:22px;
+margin-bottom:18px;
+}
+.miner-grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+gap:22px;
+}
+.miner{
+background:#0b0f2a;
+border-radius:16px;
+padding:18px;
+border:2px solid #1f2937;
+position:relative;
+}
+.miner::before{
+content:"";
+position:absolute;
+top:0;left:0;right:0;height:5px;
+}
+.miner.critical::before{background:#ef4444}
+.miner.monitor::before{background:#f59e0b}
+.miner.stable::before{background:#22c55e}
+.miner-head{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:12px;
+}
+.miner-id{
+font-size:20px;
+font-weight:800;
+color:#00ff88;
+}
+.badge{
+padding:6px 14px;
+border-radius:999px;
+font-size:12px;
+font-weight:700;
+}
+.badge.critical{background:#ef4444}
+.badge.monitor{background:#f59e0b}
+.badge.stable{background:#22c55e}
+.vital{
+display:flex;
+justify-content:space-between;
+background:#111827;
+padding:12px;
+border-radius:10px;
+margin-top:8px;
+border-left:4px solid #00ff88;
+}
+.mine{
+margin-top:30px;
+height:420px;
+border-radius:18px;
+border:3px solid #00ff88;
+background:linear-gradient(#1a1a2e,#3f3f46);
+position:relative;
+overflow:hidden;
+}
+.miner-icon,.drone{
+position:absolute;
+font-size:34px;
+transition:all 1.5s;
+filter:drop-shadow(0 0 12px #00ff88);
+}
+.log{
+margin-top:24px;
+background:black;
+border-radius:14px;
+padding:14px;
+height:220px;
+overflow:auto;
+font-family:monospace;
+font-size:13px;
+}
+.log div{
+border-left:3px solid #00ff88;
+padding-left:8px;
+margin-bottom:6px;
+}
+button{
+margin-top:18px;
+padding:14px;
+width:100%;
+border-radius:12px;
+border:none;
+background:linear-gradient(135deg,#2563eb,#7c3aed);
+color:white;
+font-weight:800;
+cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>🚁 DRONE RESCUE EVACUATION PANEL</h1>
+<div>Real-time Emergency Response System</div>
+</header>
+
+<div class="statusbar">
+<div class="stat"><div class="label">Edge Gateway</div><div class="value">ONLINE</div></div>
+<div class="stat"><div class="label">Total Miners</div><div class="value">1</div></div>
+<div class="stat"><div class="label">Critical Alerts</div><div class="value" id="criticalCount">0</div></div>
+<div class="stat"><div class="label">Active Drones</div><div class="value" id="activeDrones">0</div></div>
+</div>
+
+<h2 class="section-title">🔥 Triage Priority</h2>
+<div class="miner-grid" id="minerGrid"></div>
+
+<button id="deployBtn">🚨 Deploy Rescue Drone</button>
+
+<div class="mine" id="mine"></div>
+<div class="log" id="log"></div>
+
+<script>
+
+const EDGE_URL="https://fiveg-smart-miner-rescue.onrender.com/status";
+
+const minerGrid = document.getElementById("minerGrid");
+const mine = document.getElementById("mine");
+const logBox = document.getElementById("log");
+const criticalCountEl = document.getElementById("criticalCount");
+const activeDronesEl = document.getElementById("activeDrones");
+
+let miners=[];
+let drones=[
+{id:1,status:"standby",x:40,y:40},
+{id:2,status:"standby",x:40,y:40}
+];
+
+function pick(obj, keys, def=0){
+  for (const k of keys){
+    if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+  }
+  return def;
+}
+
+// ✅ NEW — auto detect gas key if unknown
+function pickGas(obj){
+  const known = pick(obj, ["gasLevel","gaslevel","gas_level","gas"], null);
+  if (known !== null) return known;
+
+  for (const k in obj){
+    if (k.toLowerCase().includes("gas")) return obj[k];
+  }
+  return 0;
+}
+
+function log(msg){
+const t=new Date().toLocaleTimeString();
+logBox.innerHTML=`<div>[${t}] ${msg}</div>`+logBox.innerHTML;
+}
+
+async function fetchMiner(){
+try{
+const r=await fetch(EDGE_URL);
+if(!r.ok) return;
+const j=await r.json();
+if(!j.miners || !j.miners.length) return;
+
+const m=j.miners[0];
+
+miners=[{
+id: m.id || "M001",
+category: m.category || "UNKNOWN",
+hr: pick(m, ["heartrate","hr","heartRate"], 0),
+gas: pickGas(m), // ✅ FINAL GAS FIX
+temp: pick(m, ["temperature","temp","Temp","temperature_c"], 0),
+x:220,y:200
+}];
+
+render();
+
+}catch(e){
+console.log(e);
+}
+}
+
+function render(){
+if(!miners.length) return;
+const m=miners[0];
+const cat=(m.category || "stable").toLowerCase();
+
+criticalCountEl.textContent = m.category==="CRITICAL"?1:0;
+
+minerGrid.innerHTML=`
+<div class="miner ${cat}">
+<div class="miner-head">
+<div class="miner-id">⛏️ ${m.id}</div>
+<div class="badge ${cat}">${m.category}</div>
+</div>
+
+<div class="vital">❤️ Heart Rate <b>${m.hr} bpm</b></div>
+<div class="vital">☁️ Gas Level <b>${m.gas}</b></div>
+<div class="vital">🌡️ Temperature <b>${m.temp}°C</b></div>
+
+</div>`;
+
+renderMine();
+}
+
+function renderMine(){
+mine.innerHTML="";
+
+miners.forEach(m=>{
+const e=document.createElement("div");
+e.className="miner-icon";
+e.innerHTML="⛏️";
+e.style.left=m.x+"px";
+e.style.top=m.y+"px";
+mine.appendChild(e);
+});
+
+drones.forEach(d=>{
+const e=document.createElement("div");
+e.className="drone";
+e.innerHTML="🚁";
+e.style.left=d.x+"px";
+e.style.top=d.y+"px";
+mine.appendChild(e);
+});
+
+activeDronesEl.textContent =
+drones.filter(d=>d.status!=="standby").length;
+}
+
+document.getElementById("deployBtn").onclick = () => {
+if(!miners.length) return;
+const m=miners[0];
+const d=drones.find(x=>x.status==="standby");
+if(!d){ log("❌ No drone available"); return; }
+
+d.status="deployed";
+log("🚁 Drone launched");
+
+setTimeout(()=>{
+d.x=m.x; d.y=m.y;
+renderMine();
+log("🎯 Drone reached miner");
+
+setTimeout(()=>{
+d.status="standby";
+d.x=40; d.y=40;
+renderMine();
+log("✅ Rescue complete");
+},3000);
+
+},2000);
+};
+
+log("System Online");
+fetchMiner();
+setInterval(fetchMiner,2000);
+
+</script>
+</body>
+</html>
