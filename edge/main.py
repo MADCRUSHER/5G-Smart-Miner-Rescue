@@ -34,9 +34,9 @@ def logic(data:vestdata):
 
 	if hrate>=1000:
 		score+=2
-	elif 915 <= hrate <= 970:
-		score+=5
-	elif hrate<=905:
+	elif 900 <= hrate <= 970:
+		score+=3
+	elif hrate<=890:
 		score=10
 
 	if temp>=41.5:
@@ -70,5 +70,4 @@ def logic(data:vestdata):
 
 @app.get("/status")
 def getstatus():
-
 	return alert
