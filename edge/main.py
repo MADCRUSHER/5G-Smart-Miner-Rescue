@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.addmiddle(CORSMiddleware,allow_origins=["*"],allow_credentials=True,allow_methods=["*"],allow_headers=["*"],)
 
 alert={"status":"No data received yet"}
 
@@ -56,9 +59,9 @@ def logic(data:vestdata):
 
 	miners=[]
 	miners.append({"id":data.minerid,"category":booga,"heartrate":hrate,"gas level":gas,"Temp":temp})
-	miners.append({"id":"Miner 102","category":"WARNING","heartrate":int(hrate*0.75),"gas level":int(gas*0.6),"Temp":round(temp-1.5,1)})
-	miners.append({"id":"Miner 103","category":"MONITOR","heartrate":int(hrate*0.4),"gas level":int(gas*0.3),"Temp":round(temp-3,1)})
-	miners.append({"id":"Miner 104","category":"STABLE","heartrate":int(hrate*0.35),"gas level":int(gas*0.25),"Temp":round(temp-2.5,1)})
+	miners.append({"id":"Miner 102","category":booga,"heartrate":int(950),"gas level":int(710),"Temp":round(39.8)})
+	miners.append({"id":"Miner 103","category":booga,"heartrate":int(970),"gas level":int(680),"Temp":round(38.5)})
+	miners.append({"id":"Miner 104","category":booga,"heartrate":int(1005),"gas level":int(720),"Temp":round(40)})
 
 	alert ={ "miners":miners,"timestamp":"Real-time 5G feed"}
 	return alert
