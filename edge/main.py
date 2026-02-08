@@ -34,8 +34,10 @@ def logic(data:vestdata):
 
 	if hrate>=1000:
 		score+=2
-	elif 900 <= hrate <= 970:
-		score+=3
+	elif 900 <= hrate <= 930:
+		score+=8
+	elif 930 <= hrate <= 970:
+		score+=5
 	elif hrate<=890:
 		score=10
 
