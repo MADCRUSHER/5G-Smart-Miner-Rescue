@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-app.addmiddle(CORSMiddleware,allow_origins=["*"],allow_credentials=True,allow_methods=["*"],allow_headers=["*"],)
+app.add_middle(CORSMiddleware,allow_origins=["*"],allow_credentials=True,allow_methods=["*"],allow_headers=["*"],)
 
 alert={"status":"No data received yet"}
 
@@ -68,4 +68,5 @@ def logic(data:vestdata):
 
 @app.get("/status")
 def getstatus():
+
 	return alert
